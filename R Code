@@ -2,7 +2,10 @@
 set.seed(12345) 
 
 # import caret and RANN
-library(caret): library(RANN)
+library(caret)
+library(RANN) 
+library(rattle)
+
 
 # summary of data
 summary(proj1)
@@ -263,5 +266,159 @@ library(ggplot2)
    addmargins(A = CP2, margin = (1), 
               FUN = sum, quiet = TRUE)
    
-   
-   
+# pt 2
+  # data prep
+  # delete var. occupation
+proj3$occupation<- NULL
+
+ 
+# Task 1, 
+  # proportion table income and education
+t11 <- table(proj3$income,proj3$education)
+t11
+
+  # reclassify education
+educ<- proj3$education <-
+  revalue(proj3$education,
+          c("10th" = 0, "11th" = 0, "12th"=0, "1st-4th"=0, "Preschool"=0,
+            "5th-6th"=0, "7th-8th"=0, "9th"=0, "HS-grad"=0, 
+            "Assoc-acdm"=1, "Masters"=1, "Prof-school"=1, "Some-college"=1,
+            "Assoc-voc"=1, "Bachelors"=1, "Doctorate"=1))
+summary(proj3$educ)
+
+  # change from numberic to categorical, low and high
+proj3$educ <- ifelse(proj3$educ== 0, "low", "high")
+
+  # delete education variable
+proj3$education <- NULL
+
+  # prop. table of educ. against income, rounded to two decimal places
+t12 <- table(proj3$income, proj3$educ) ; t12 #assign table (rows, column)
+
+   # column proportions table
+round(prop.table(t1, margin = 2)*100, 2)
+
+  # reclassify relationship
+    # view table
+table(proj3$income, proj3$relationship) 
+  
+rel<- proj3$relationship <-
+  revalue(proj3$relationship,
+          c("Husband"=1, "Not-in-family"=0, "Other-relative"=0, 
+            "Own-child"=0, "Unmarried"=0, "Wife"=1))
+summary(proj3$rel)
+
+  # numerical to categorical
+proj3$rel<- ifelse(proj3$rel== 0, "Other", "HusWife")
+
+  # prop.table of rel. against income, rounded to two decimal places
+t13 <- table(proj3$income, proj3$rel) ; t13 
+    # proportions 
+round(prop.table(t2, margin = 2)*100, 2)
+
+  # partition data set
+
+  # set income as factor
+proj3$income<-as.factor(proj3$income)
+
+inTrain <- createDataPartition(
+  y = proj3$income, p = .5,
+  list = FALSE)
+
+str(proj3$income)
+    #assign records in inTrain
+proj3.tr <- proj3[ inTrain,]
+
+    #assign records not in inTrain
+proj3.te <- proj3[-inTrain,]
+
+  # confirm stratification worked
+summary(proj3.tr$income)
+summary(proj3.te$income)
+
+  # validate partition for cg.imp
+      # append new variable part
+proj3.tr$part <-
+  rep("train", nrow(proj3.tr))
+proj3.te$part <-
+  rep("test", nrow(proj3.te))
+      #merge data sets using rbind.
+proj3.all <- rbind(proj3.tr, proj3.te)
+
+boxplot(cg.imp ~ as.factor(part), data = proj3.all) 
+
+    # Kruskal Wallis test
+kruskal.test(cg.imp ~ as.factor(part), 
+             data = proj3.all)
+    # p-value is 0.217, partition is validated
+
+  # validate partition for capital.loss
+
+      #boxplot
+boxplot(proj3$capital.loss ~ as.factor(part), data = proj3.all) 
+    
+      #KW test
+kruskal.test(proj3$capital.loss ~ as.factor(part), 
+             data = proj3.all) #p-value = 0.8072 so partition is validated
+
+proj3.te$part<- NULL
+proj3.tr$part<- NULL
+
+  # Validate the partition for rel.
+set.seed(12345)
+ 
+proj3.tr$rel<-as.factor(proj3.tr$rel)
+summary(proj3.tr$rel)
+          #HusWife   Other 
+          #7378    8903
+
+proj3.te$rel<-as.factor(proj3.te$rel)
+summary(proj3.te$rel)
+          #HusWife   Other 
+          # 7383    8897 
+
+  #proportions table 
+pt<- matrix(c(7378, 7383, 8903, 8897), nrow=2)
+colnames(pt) <- c("HusWife","Other")
+rownames(pt) <- c("Training","Test"); pt
+round(prop.table(pt, 1), 4)
+
+  # chisq test
+chisq.test(pt, correct = FALSE) 
+        #Pearson's Chi-squared test
+        #data:  pt
+        #X-squared = 0.0036854, df = 1, p-value = 0.9516
+
+  # Validate the partition for educ
+set.seed(12345)
+proj3.tr$educ<-as.factor(proj3.tr$educ)
+summary(proj3.tr$educ)
+      #high  low 
+      #8835 7446
+
+proj3.te$educ<-as.factor(proj3.te$educ)
+summary(proj3.te$educ)
+
+      #high  low 
+      #8972 7308 
+
+pt13 <- matrix(c(8835, 8972, 7446,7308), nrow=2)
+colnames(pt13) <- c("high","low")
+rownames(pt13) <- c("Training","Test"); pt13
+ 
+ #proportions
+round(prop.table(pt2, 1), 4)
+  
+  #chisq test
+chisq.test(pt2, correct = FALSE) 
+      #Pearson's Chi-squared test
+      #data:  pt2
+      #X-squared = 2.3448, df = 1, p-value = 0.1257
+
+  # save variables
+write.csv(proj3.tr, "proj3.tr")
+write.csv(proj3.te, "cproj3.te")
+
+  # contingency table of counts
+summary(proj3.tr$income)
+

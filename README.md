@@ -10,4 +10,4 @@ Donors: Ronny Kohavi and Barry Becker
 Data Mining and Visualization
 Silicon Graphics.
 
-Source: https://archive.ics.uci.edu/ml/datasets/adult
+Data source: https://archive.ics.uci.edu/ml/datasets/adult

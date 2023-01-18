@@ -1,19 +1,21 @@
 # set seed
 set.seed(12345) 
 
-# import caret and RANN
+# import dataset
+# library packages
 library(caret)
 library(RANN) 
 library(rattle)
+library(plyr)
 
-
-# summary of data
+# data summary
 summary(proj1)
 
-# table 
+# table of target variable proportions
 table(proj1$income)
 # 3554/11243 = 31.6% of total customers
 
+# combine capital gain and capital loss into one variable
 # histogram of capital gain
 hist(proj1$capital.gain)
 
@@ -29,8 +31,7 @@ cgsd<- sd(proj1$capital.gain, na.rm = TRUE);  cgsd
 # [1] 2610.7 #this is the sd without 99999
 
 
-# impute missing data into capital gain
-# imputation model, standardizes data
+# impute missing data into capital gain using imputation model
 # find sd and mean of standardized scores
 
 imputation_model <-
@@ -44,10 +45,10 @@ proj1.imp  <-#new imputed value dataset named proj1.imp
 # view results 
 View(proj1.imp)
 
-# its all standardized values, so de-standardize
+# all standardized values, so de-standardize
 # to solve for X, Z * sd + mean
 
-# cg.imp is with imputed values  
+# cg.imp is var with imputed values  
 
 cg.imp<- proj1$cg.imp<-
   ifelse(
@@ -69,7 +70,7 @@ sd(proj1$cg.imp)
 mean(proj1$cg.imp)
 #[1] 605.9433
 
-# make flag variable:cg.miss
+# make flag variable: cg.miss
 # takes value 1 when capital.gain (pre-imputation) 
 # is missing and 0 otherwise
       cg.miss = proj1$cg.miss<- 
@@ -85,8 +86,6 @@ ID<- proj1$ID <- 1:nrow(proj1)
 
 # make a new column for marital status
 # rename marital status 
-
-library(plyr) #for revalue function
 
 # rename original marital status variable
 (names(proj1)[names(proj1)=="marital.status"] <- "marital.status.old")
@@ -173,15 +172,15 @@ round(prop.table(t7, margin = 2)*100, 2)
       # find cut off of capital.loss
       
       
-      #mean
+      # mean
       mean(proj1$capital.loss) 
       #88.58079
 
-      #sd
+      # sd
       sd(proj1$capital.loss)
       #406.3222
       
-      #formula for outlier cutoff value
+      # formula for outlier cutoff value
       # mean + 3*sd
       # 88.58079 + (3*406.3222) = 1307.547
 
@@ -213,7 +212,9 @@ table(proj1$capital.ld)
           
     # Bin education based on predictive value  
 
-library(rpart):library(rpart.plot)
+library(rpart)
+library(rpart.plot)
+
 # make a tree for predicting income based on education
 eb <- rpart(formula = income ~ education, 
                   data = proj1, control = rpart.control
@@ -375,7 +376,7 @@ summary(proj3.te$rel)
           #HusWife   Other 
           # 7383    8897 
 
-  #proportions table 
+  # proportions table 
 pt<- matrix(c(7378, 7383, 8903, 8897), nrow=2)
 colnames(pt) <- c("HusWife","Other")
 rownames(pt) <- c("Training","Test"); pt
@@ -404,10 +405,10 @@ pt13 <- matrix(c(8835, 8972, 7446,7308), nrow=2)
 colnames(pt13) <- c("high","low")
 rownames(pt13) <- c("Training","Test"); pt13
  
- #proportions
+ # proportions
 round(prop.table(pt2, 1), 4)
   
-  #chisq test
+  # chisq test
 chisq.test(pt2, correct = FALSE) 
       #Pearson's Chi-squared test
       #data:  pt2

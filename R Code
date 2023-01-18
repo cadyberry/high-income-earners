@@ -271,11 +271,9 @@ library(ggplot2)
   # delete var. occupation
 proj3$occupation<- NULL
 
- 
-# Task 1, 
-  # proportion table income and education
-t11 <- table(proj3$income,proj3$education)
-t11
+
+  # proportion table of income and education
+t11 <- table(proj3$income,proj3$education); t11
 
   # reclassify education
 educ<- proj3$education <-

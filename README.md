@@ -2,7 +2,7 @@
 
 This project examines a set of 14,797 records from 1994 US census data to determine which characteristics are associated with high income. High income is defined as having income greater than $50,000. 31.6% (3554) of records are high-income earners. 
 
-
+Tasks include: data preparation, obtaining descriptive statistics, identifiying outliers, creating dummy variables, binning variables, creating bar charts, partitioning data into test and training set, 
 
 
 

@@ -2,6 +2,7 @@
 set.seed(12345) 
 
 # import dataset
+
 # library packages
 library(caret)
 library(RANN) 
@@ -420,4 +421,239 @@ write.csv(proj3.te, "cproj3.te")
 
   # contingency table of counts
 summary(proj3.tr$income)
+
+
+
+# NEW START:  ####################################################################################
+
+
+  #prep
+set.seed(12345)
+library(plyr)
+library(caret)
+library(rattle)
+str(proj3)
+
+# income is target variable 
+
+  #  delete var. occupation
+proj3$occupation<- NULL
+
+  # task: impute data values for capital.gain
+proj3$capital.gain[proj3$capital.gain == 99999] <- NA
+
+# imputation model 
+imputation_model <-
+  preProcess(proj3,
+             method = c("knnImpute"))
+proj3.imp  <-#new imputed value dataset named proj3.imp
+  predict(imputation_model, proj3) #proj3.imp is new dataset
+
+  # view results 
+View(proj3.imp)
+
+  #  mean of capital gain, without 99999
+cgm <- mean(proj3$capital.gain, na.rm = TRUE)
+cgm
+
+
+  # sd of capital gain, without 99999
+cgsd<- sd(proj3$capital.gain, na.rm = TRUE)
+cgsd
+
+cg.imp<- proj3$cg.imp<-
+  ifelse(
+    test = is.na(proj3$capital.gain) == TRUE,
+    yes = proj3.imp$capital.gain * cgsd + cgm,
+    no = proj3$capital.gain)
+summary(proj3$cg.imp)
+
+  # new sd with imputed values
+sd(proj3$cg.imp)
+
+  # new mean with imputed values
+mean(proj3$cg.imp)
+
+ # the imputed mean and sd do not present systematic differences.
+
+  # task: make flag variable: cap.miss
+  # takes value 1 when capital.gain (pre-imputation) is missing
+  # and 0 otherwise
+  
+cap.miss = proj3$cap.miss<- 
+  ifelse(test = is.na(proj3$capital.gain) == TRUE,
+         yes = 1,no = 0)
+         
+  ####
+
+# task: observe relationship between educ. and income
+
+  # proportion table of income and education
+table(proj3$income,proj3$education)
+
+
+  # reclassify education
+  # some college and up is high
+  # hs-grad and down is low
+  
+educ<- proj3$education <-
+  revalue(proj3$education,
+          c("10th" = 0, "11th" = 0, "12th"=0, "1st-4th"=0, "Preschool"=0,
+            "5th-6th"=0, "7th-8th"=0, "9th"=0, "HS-grad"=0, 
+            "Assoc-acdm"=1, "Masters"=1, "Prof-school"=1, "Some-college"=1,
+            "Assoc-voc"=1, "Bachelors"=1, "Doctorate"=1))
+summary(proj3$educ)
+
+  # numerical to categorical
+proj3$educ <- ifelse(proj3$educ== 0, "low", "high")
+
+  # delete education variable
+proj3$education <- NULL
+
+    # contingency table 
+t1 <- table(proj3$income, proj3$educ) ; t1 #assign table (rows, column)
+
+   # column proportions table
+round(prop.table(t1, margin = 2)*100, 2)
+
+####
+
+   # task: observe relationship between relationship and income 
+   
+   # view table
+table(proj3$income, proj3$relationship) 
+
+   # reclassify relationship
+rel<- proj3$relationship <-
+  revalue(proj3$relationship,
+          c("Husband"=1, "Not-in-family"=0, "Other-relative"=0, 
+            "Own-child"=0, "Unmarried"=0, "Wife"=1))
+  summary(proj3$rel)
+
+  # numerical to categorical
+proj3$rel<- ifelse(proj3$rel== 0, "Other", "HusWife")
+
+  # prop.table of rel against income, rounded to two decimal places
+t2 <- table(proj3$income, proj3$rel) ; t2 #assign table (rows, column)
+    #proportions 
+round(prop.table(t2, margin = 2)*100, 2)
+
+####
+
+  # task: partition data set
+
+set.seed(12345)
+
+  # set as factor
+proj3$income<-as.factor(proj3$income)
+
+# partition 
+inTrain <- createDataPartition(
+  y = proj3$income, p = .5,
+  list = FALSE)
+
+str(proj3$income)
+    # assign records in inTrain
+proj3.tr <- proj3[ inTrain,]
+
+    # assign records not in inTrain
+proj3.te <- proj3[-inTrain,]
+
+  # confirm stratification worked
+summary(proj3.tr$income)
+summary(proj3.te$income)
+
+####
+
+  # task: validate partition for cg.imp
+ 
+ set.seed(12345)
+      # append new variable part
+proj3.tr$part <-
+  rep("train", nrow(proj3.tr))
+proj3.te$part <-
+  rep("test", nrow(proj3.te))
+  
+     # merge data sets using rbind.
+proj3.all <- rbind(proj3.tr, proj3.te)
+
+    # boxplots
+boxplot(cg.imp ~ as.factor(part), data = proj3.all) 
+
+    # KW test
+kruskal.test(cg.imp ~ as.factor(part), 
+             data = proj3.all)
+    # p value = 0.217, partition is validated
+    
+####
+
+  # task: validate partition for capital.loss
+
+      # boxplot
+boxplot(proj3$capital.loss ~ as.factor(part), data = proj3.all) 
+    
+      # KW test
+kruskal.test(proj3$capital.loss ~ as.factor(part), 
+             data = proj3.all) #p-value = 0.8072 so partition is validated
+
+proj3.te$part<- NULL
+proj3.tr$part<- NULL
+
+  # task: validate the partition for rel
+  
+set.seed(12345)
+ 
+proj3.tr$rel<-as.factor(proj3.tr$rel)
+summary(proj3.tr$rel)
+    
+
+proj3.te$rel<-as.factor(proj3.te$rel)
+summary(proj3.te$rel)
+       
+
+  # proportions table of test and training set validation results
+  
+pt<- matrix(c(7378, 7383, 8903, 8897), nrow=2)
+colnames(pt) <- c("HusWife","Other")
+rownames(pt) <- c("Training","Test"); pt
+round(prop.table(pt, 1), 4)
+
+  # chi sq test
+chisq.test(pt, correct = FALSE) 
+       # p-value = 0.9516
+       # large p value confirms observed difference in prop. is not significant
+
+####
+
+  # task: validate the partition for educ
+set.seed(12345)
+
+proj3.tr$educ<-as.factor(proj3.tr$educ)
+summary(proj3.tr$educ)   
+
+proj3.te$educ<-as.factor(proj3.te$educ)
+summary(proj3.te$educ)
+
+pt2<- matrix(c(8835, 8972, 7446,7308), nrow=2)
+colnames(pt2) <- c("high","low")
+rownames(pt2) <- c("Training","Test"); pt2
+  
+  # proportions
+round(prop.table(pt2, 1), 4)
+  
+  # chi sq test
+chisq.test(pt2, correct = FALSE) 
+      # p-value = 0.1257     
+      # large p value confirms observed difference in prop. is not significant
+
+
+
+
+
+
+
+
+
+
+
 

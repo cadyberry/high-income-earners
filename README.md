@@ -1,4 +1,4 @@
-# high-income-earners
+# High income earners
 
 A classification and regression tree (CART) was used to predict income level based on
 education level, net capital gains and marital status using a dataset of 32,561 records. 
@@ -10,6 +10,9 @@ follows:
 • The CART model achieved an accuracy of 82.04% which outperformed the 
 baseline model of 75.92% accuracy by 6.13%. Error rate was also decreased by 
 6.13%.
+
+![](images/eval_metrics.JPG)
+
 
 • 67.04% of the high-income earners and 86.01% of the low-income earners were 
 predicted correctly by the CART model.

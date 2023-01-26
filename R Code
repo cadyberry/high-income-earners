@@ -1,433 +1,5 @@
-# set seed
-set.seed(12345) 
-
-# import dataset
-
-# library packages
-library(caret)
-library(RANN) 
-library(rattle)
-library(plyr)
-
-# data summary
-summary(proj1)
-
-# table of target variable proportions
-table(proj1$income)
-# 3554/11243 = 31.6% of total customers
-
-# combine capital gain and capital loss into one variable
-# histogram of capital gain
-hist(proj1$capital.gain)
-
-# set value of 99999 within capital gain to missing value 
-proj1$capital.gain[proj1$capital.gain == 99999] <- NA
-
-# find mean of capital gain
-cgm <- mean(proj1$capital.gain, na.rm = TRUE); cgm
-# [1] 603.0878, this is the mean without 99999
-
-# find sd of capital gain 
-cgsd<- sd(proj1$capital.gain, na.rm = TRUE);  cgsd
-# [1] 2610.7 #this is the sd without 99999
-
-
-# impute missing data into capital gain using imputation model
-# find sd and mean of standardized scores
-
-imputation_model <-
-  preProcess(proj1,
-           method = c("knnImpute"))
-
-
-proj1.imp  <-#new imputed value dataset named proj1.imp
-  predict(imputation_model, proj1) #proj1.imp is new dataset
-
-# view results 
-View(proj1.imp)
-
-# all standardized values, so de-standardize
-# to solve for X, Z * sd + mean
-
-# cg.imp is var with imputed values  
-
-cg.imp<- proj1$cg.imp<-
-  ifelse(
-   test = is.na(proj1$capital.gain) == TRUE,
-  yes = proj1.imp$capital.gain * cgsd + cgm,
-  no = proj1$capital.gain)
-summary(proj1$cg.imp)
-
-# table with imputed values
-table(proj1$cpg.imp)
-
-# proj1$cg.imp <- round(proj1.imp$capital.gain * cgsd + cgm, 5)
-
-# new sd with imputed values
-sd(proj1$cg.imp)
-#[1] 2606.436
-
-# new mean with imputed values
-mean(proj1$cg.imp)
-#[1] 605.9433
-
-# make flag variable: cg.miss
-# takes value 1 when capital.gain (pre-imputation) 
-# is missing and 0 otherwise
-      cg.miss = proj1$cg.miss<- 
-       ifelse(test = is.na(proj1$capital.gain) == TRUE,
-        yes = 1,no = 0)
-
-# contingency table for flag variable capital gain & income
-table1 <- table(proj1$income,cg.miss); table1
-
-# create ID field
-# first to last record
-ID<- proj1$ID <- 1:nrow(proj1)
-
-# make a new column for marital status
-# rename marital status 
-
-# rename original marital status variable
-(names(proj1)[names(proj1)=="marital.status"] <- "marital.status.old")
-
-# 1 is married, 0 is other 
-marital.status<- proj1$marital.status <-
-  revalue(proj1$marital.status,
-          c("Married-civ-spouse" = 1, "Divorced" =0, 
-            "Widowed" = 0, 
-            "Never-married"= 0, 
-            "Married-AF-spouse"=1,
-            "Married-spouse-absent"=1,
-            "Separated"=0))
-summary(proj1$marital.status) # check work
-
-proj1$marital.status <- ifelse(proj1$marital.status== 0, "Other", "Married")
-
-# contingency table with income and marital status
-t1 <- table(proj1$income, proj1$marital.status); t1
-
-# proportions table of t1, 2 decimal places
-round(prop.table(t1, margin = 2)*100, 2)
-
-
-# combine cg and cl into one variable "capgl"
-# capgl<- paste(proj1$capital.loss, proj1$capital.gain)
-   
-# ifelse command
-# if value is 1 or more, it is set to 1
-# if it is less than 1, it is set to 0
-
-capgl <- ifelse(capgl>= 1, 1, 0)
-#summary
-summary(capgl)
-#set as categorical
-capgl <- as.factor(capgl) 
-summary(capgl)
-
-# table comparing income and capital loss or gain
-t2 <- table(proj1$income, capgl) ; t2
-
-# proportions table with column proportions
-round(prop.table(t2, margin = 2)*100, 2)
-
-# Outliers
-
-# proportion of high income over all records 
-t3 <-table(proj1$income)
-round(prop.table(t3)*100, 2)
-# 24%
-
-# compare proportions of education to income
-t4 <- table(proj1$education, proj1$income)
-round(prop.table(t4, margin = 2)*100, 2)
-# as years in education increased, salary>50k increased
-
-# compare proportions of sex to income
-t5 <- table(proj1$sex, proj1$income)
- round(prop.table(t5, margin = 2)*100, 2)
-              
-         #        <=50K  >50K
-         #  Female 38.67 15.87
-         #  Male   61.33 84.13
- 
-# compare proportions of marital status to income
-t6 <- table(proj1$marital.status, proj1$income)
-round(prop.table(t6, margin = 2)*100, 2)
-
-          #          <=50K  >50K
-          #  Married 34.89 86.04
-          #  Other   65.11 13.96
-          #86% of high income earners are married
-
-# compare proportions of capital gain to income
-t7 <- table(capgl, proj1$income)
-round(prop.table(t7, margin = 2)*100, 2)
-          #capgl   <=50K  >50K
-          #    0 95.83 78.53
-          #    1  4.17 21.47 
-          # 79% of income >50k have no cap. gain/loss
-
-# to find the outliers within capital.loss:
-      # find mean and sd of capital.loss
-      # find cut off of capital.loss
-      
-      
-      # mean
-      mean(proj1$capital.loss) 
-      #88.58079
-
-      # sd
-      sd(proj1$capital.loss)
-      #406.3222
-      
-      # formula for outlier cutoff value
-      # mean + 3*sd
-      # 88.58079 + (3*406.3222) = 1307.547
-
-      # create dummy variable for capital loss
-proj1$capital.ld <- proj1$capital.loss
-
-      # if capital loss is greater than 1307, 
-      # mark as 1, if not, 0
-proj1$capital.ld <- ifelse(proj1$capital.ld>= 1307.547, 1, 0)
-#view table to see total outliers
-table(proj1$capital.ld)
-
-      #     0     1 
-      # 14118   679 
-      # there are 679 outliers
-
-# find proportion of high income among outliers
-# set var as categorical (records are either over cutoff or not)
-      proj1$capital.ld<- as.factor(proj1$capital.ld)
-# table
-      t8<-table(proj1$income,proj1$capital.ld)
-# proportions table
-      round(prop.table(t8, margin = 2)*100, 2)
-          #         0     1
-          #<=50K 77.33 48.01
-          #>50K  22.67 51.99  
-          
-          
-          
-    # Bin education based on predictive value  
-
-library(rpart)
-library(rpart.plot)
-
-# make a tree for predicting income based on education
-eb <- rpart(formula = income ~ education, 
-                  data = proj1, control = rpart.control
-                  (minbucket = .01 * nrow(proj1),
-                      maxdepth=2))
-                  rpart.plot(eb)
-# 75% of education <13 years makes less than 50k
-# of over 14 years, 9% make over 50k, 16% make less
-
-# splits at <13 and <14 
-# and 1 in least number of years and 16 is max number of years
-# using cut fxn and thresholds from tree for bin
-educ.bin <- cut(proj1$education,
-                breaks = c(1, 13, 14, 16))
-summary(proj1$educ.bin)
-
-# contingency table
-# with income for the rows and educ.bin for the columns
-t10<-table(proj1$income, educ.bin); t10
-
-# with the column proportions, rounded to two decimal places
-round(prop.table(t10, margin = 2)*100, 2)
-
-
-# stacked bar graphs of education with income overlay
-  # educ.bin will be on the horizontal axis, 
-  # and colors will represent income
-
-library(ggplot2)
-    # non-normalized bar chart
-        ggplot(proj1, aes(education))+
-        geom_bar(aes(fill = income), position = "stack")+
-        xlab("Years of Education") + ylab("Income")+
-        ggtitle("Non-normalized Bar Chart of Education with Income Overlay")
-        
-    # normalized bar chart 
-        ggplot(proj1, aes(education))+
-          geom_bar(aes(fill = income), position = "fill")+
-          xlab("Years of Education") + ylab("Income")+
-          ggtitle("Normalized Bar Chart of Education With Income Overlay")
-        
- 
- # table of income and sex counts with row and column totals
-  tab14<- table(proj1$income,proj1$sex)
-  tab15 <- addmargins(A = tab14, margin = c(1,2), 
-                        FUN = sum, quiet = TRUE); tab15
-                        
- # table of income and sex column proportions with column totals only
-  CP2<- round(prop.table(tab14, margin = 2)*100, 2)
-   addmargins(A = CP2, margin = (1), 
-              FUN = sum, quiet = TRUE)
-   
-# pt 2
-  # data prep
-  # delete var. occupation
-proj3$occupation<- NULL
-
-
-  # proportion table of income and education
-t11 <- table(proj3$income,proj3$education); t11
-
-  # reclassify education
-educ<- proj3$education <-
-  revalue(proj3$education,
-          c("10th" = 0, "11th" = 0, "12th"=0, "1st-4th"=0, "Preschool"=0,
-            "5th-6th"=0, "7th-8th"=0, "9th"=0, "HS-grad"=0, 
-            "Assoc-acdm"=1, "Masters"=1, "Prof-school"=1, "Some-college"=1,
-            "Assoc-voc"=1, "Bachelors"=1, "Doctorate"=1))
-summary(proj3$educ)
-
-  # change from numberic to categorical, low and high
-proj3$educ <- ifelse(proj3$educ== 0, "low", "high")
-
-  # delete education variable
-proj3$education <- NULL
-
-  # prop. table of educ. against income, rounded to two decimal places
-t12 <- table(proj3$income, proj3$educ) ; t12 #assign table (rows, column)
-
-   # column proportions table
-round(prop.table(t1, margin = 2)*100, 2)
-
-  # reclassify relationship
-    # view table
-table(proj3$income, proj3$relationship) 
-  
-rel<- proj3$relationship <-
-  revalue(proj3$relationship,
-          c("Husband"=1, "Not-in-family"=0, "Other-relative"=0, 
-            "Own-child"=0, "Unmarried"=0, "Wife"=1))
-summary(proj3$rel)
-
-  # numerical to categorical
-proj3$rel<- ifelse(proj3$rel== 0, "Other", "HusWife")
-
-  # prop.table of rel. against income, rounded to two decimal places
-t13 <- table(proj3$income, proj3$rel) ; t13 
-    # proportions 
-round(prop.table(t2, margin = 2)*100, 2)
-
-  # partition data set
-
-  # set income as factor
-proj3$income<-as.factor(proj3$income)
-
-inTrain <- createDataPartition(
-  y = proj3$income, p = .5,
-  list = FALSE)
-
-str(proj3$income)
-    #assign records in inTrain
-proj3.tr <- proj3[ inTrain,]
-
-    #assign records not in inTrain
-proj3.te <- proj3[-inTrain,]
-
-  # confirm stratification worked
-summary(proj3.tr$income)
-summary(proj3.te$income)
-
-  # validate partition for cg.imp
-      # append new variable part
-proj3.tr$part <-
-  rep("train", nrow(proj3.tr))
-proj3.te$part <-
-  rep("test", nrow(proj3.te))
-      #merge data sets using rbind.
-proj3.all <- rbind(proj3.tr, proj3.te)
-
-boxplot(cg.imp ~ as.factor(part), data = proj3.all) 
-
-    # Kruskal Wallis test
-kruskal.test(cg.imp ~ as.factor(part), 
-             data = proj3.all)
-    # p-value is 0.217, partition is validated
-
-  # validate partition for capital.loss
-
-      #boxplot
-boxplot(proj3$capital.loss ~ as.factor(part), data = proj3.all) 
-    
-      #KW test
-kruskal.test(proj3$capital.loss ~ as.factor(part), 
-             data = proj3.all) #p-value = 0.8072 so partition is validated
-
-proj3.te$part<- NULL
-proj3.tr$part<- NULL
-
-  # Validate the partition for rel.
-set.seed(12345)
- 
-proj3.tr$rel<-as.factor(proj3.tr$rel)
-summary(proj3.tr$rel)
-          #HusWife   Other 
-          #7378    8903
-
-proj3.te$rel<-as.factor(proj3.te$rel)
-summary(proj3.te$rel)
-          #HusWife   Other 
-          # 7383    8897 
-
-  # proportions table 
-pt<- matrix(c(7378, 7383, 8903, 8897), nrow=2)
-colnames(pt) <- c("HusWife","Other")
-rownames(pt) <- c("Training","Test"); pt
-round(prop.table(pt, 1), 4)
-
-  # chisq test
-chisq.test(pt, correct = FALSE) 
-        #Pearson's Chi-squared test
-        #data:  pt
-        #X-squared = 0.0036854, df = 1, p-value = 0.9516
-
-  # Validate the partition for educ
-set.seed(12345)
-proj3.tr$educ<-as.factor(proj3.tr$educ)
-summary(proj3.tr$educ)
-      #high  low 
-      #8835 7446
-
-proj3.te$educ<-as.factor(proj3.te$educ)
-summary(proj3.te$educ)
-
-      #high  low 
-      #8972 7308 
-
-pt13 <- matrix(c(8835, 8972, 7446,7308), nrow=2)
-colnames(pt13) <- c("high","low")
-rownames(pt13) <- c("Training","Test"); pt13
- 
- # proportions
-round(prop.table(pt2, 1), 4)
-  
-  # chisq test
-chisq.test(pt2, correct = FALSE) 
-      #Pearson's Chi-squared test
-      #data:  pt2
-      #X-squared = 2.3448, df = 1, p-value = 0.1257
-
-  # save variables
-write.csv(proj3.tr, "proj3.tr")
-write.csv(proj3.te, "cproj3.te")
-
-  # contingency table of counts
-summary(proj3.tr$income)
-
-
-
-# NEW START:  ####################################################################################
-
-
-  #prep
+# import data set
+# load packages
 set.seed(12345)
 library(plyr)
 library(caret)
@@ -435,6 +7,8 @@ library(rattle)
 str(proj3)
 
 # income is target variable 
+
+# data prep
 
   #  delete var. occupation
 proj3$occupation<- NULL
@@ -647,12 +221,76 @@ chisq.test(pt2, correct = FALSE)
       # large p value confirms observed difference in prop. is not significant
 
 
+# PART 2
+
+# model building
+
+#  task: develop CART model using 10-fold cross-validation.  
+
+set.seed(12345)
+
+TC <- trainControl(
+  method = "CV",
+  number = 10)
+
+fit <- train(income ~ ., data = proj3.tr, 
+             method = "rpart2", #CART
+             trControl = TC)
+             
+ # decision tree
+fancyRpartPlot(fit$finalModel, main = "CART Model: Predicting Income")
+
+# check model for overfitting
+  fit$resample
+  # all folds within 2% difference
+
+# apply model to test data
+# create table of pred vs observed
+  testsetpreds <- predict(fit, proj3.te)
+  testsetpreds
+
+# task: compare evaluation metrics between baseline and CART model
+
+table(proj3.te$income, testsetpreds)
+
+proj4.tr$income<-as.factor(proj3.tr$income)
+summary(proj3.tr$income)
+View(proj3.tr)
+
+
+# CART model metrics:
+
+# Accuracy: (10630+2727)/ 16280 =  0.8204 (82.04%)
+# Sensitivity:  2727/3920 = 0.6956633 (69.57%)
+# Specificity: 10630/12360 = 0.8600324 (86.0%)
+# Error Rate:  .1796 (17.96%)
 
 
 
+ # baseline model metrics: 
+
+# low income = all neg model
+# high income = all pos model 
+
+# all neg model is selected baseline model due to higher accuracy (75.9% vs 24.1%)
+    
+    # baseline model:
+      # <=50K  >50K 
+      # 12360  3921
+
+# Accuracy:  12360/16281 = 0.7591671 (75.91%)
+# Error Rate:  = 3921 / 16281 = 0.2408329 (24.08%)
+# Sensitivity: 0
+# Specificity: 1
+
+# Accuracy of CART model outperformed baseline model
+# CART model increasead accuracy by 6.13%
+# CART model can predict 69.57% of high income-earners and 86% of low income earners
 
 
+# task: list of all possible decision rules
 
+# task: create profiles of high-income and low-income earners
 
 
 

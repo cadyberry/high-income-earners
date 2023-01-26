@@ -17,6 +17,8 @@ baseline model of 75.92% accuracy by 6.13%. Error rate was also decreased by
 • 67.04% of the high-income earners and 86.01% of the low-income earners were 
 predicted correctly by the CART model.
 
+![](images/CART_DT.jpg)
+
 • If a subject is married and has high education, they are high-income earners with 
 25% support and 60% confidence. 
 
@@ -28,16 +30,12 @@ earners with 1% support and 98% confidence. Only 6.62% of all unmarried
 subjects are high income earners, so high capital gain plays a significant role in 
 this outcome. 
 
+Conclusion: 
+
 • To target high income customers, the focus should be on customers who are 
 married and have some college education or higher, or customers who are married 
 with capital gain > 5,096. Alternatively, for unmarried customers, targets should 
 focus on those with capital gain greater than 7,074. 
-
-• High-income earners are less likely to be predicted by low education and low 
-capital gain. 
-
-• Next steps might include an assessment of the predictive power of education, 
-capital gain and marriage on income level.  
 
 
 

@@ -32,10 +32,9 @@ focus on those with capital gain greater than 7,074.
 
 • High-income earners are less likely to be predicted by low education and low 
 capital gain. 
+
 • Next steps might include an assessment of the predictive power of education, 
 capital gain and marriage on income level.  
-
-Tasks include: data preparation, obtaining descriptive statistics, identifiying outliers, partitioning data, creating dummy variables, binning variables, creating bar charts. 
 
 
 

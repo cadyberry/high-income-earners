@@ -8,15 +8,23 @@ specificity were calculated for each model.
 
 Notable conclusions from analysis are as follows:
 
-• The CART model achieved an accuracy of 82.04% which outperformed the 
-baseline model of 75.92% accuracy by 6.13%. Error rate was also decreased by 
-6.13%.
+
+
 
 ![](images/eval_metrics.JPG)
 
 
+
+
+
+• The CART model achieved an accuracy of 82.04% which outperformed the 
+baseline model of 75.92% accuracy by 6.13%. Error rate was also decreased by 
+6.13%.
+
 • 67.04% of the high-income earners and 86.01% of the low-income earners were 
 predicted correctly by the CART model.
+
+
 
 ![](images/CART_DT.jpg)
 

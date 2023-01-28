@@ -9,14 +9,6 @@ specificity were calculated for each model.
 Notable conclusions from analysis are as follows:
 
 
-
-
-![](images/eval_metrics.JPG)
-
-
-
-
-
 • The CART model achieved an accuracy of 82.04% which outperformed the 
 baseline model of 75.92% accuracy by 6.13%. Error rate was also decreased by 
 6.13%.
@@ -26,7 +18,9 @@ predicted correctly by the CART model.
 
 
 
-![](images/CART_DT.jpg)
+![](images/CART_DT.jpg)  ![](images/eval_metrics.JPG)
+
+
 
 • If a subject is married and has high education, they are high-income earners with 
 25% support and 60% confidence. 
@@ -45,6 +39,9 @@ Conclusion:
 married and have some college education or higher, or customers who are married 
 with capital gain > 5,096. Alternatively, for unmarried customers, targets should 
 focus on those with capital gain greater than 7,074. 
+
+
+
 
 
 

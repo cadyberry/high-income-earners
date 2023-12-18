@@ -1,0 +1,699 @@
+---
+title: "High-income Earners"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("C:\\Users\\ab3245\\OneDrive - CCSU\\projects for portfolio")
+
+proj3 <- read.csv("proj3_income")
+
+```
+
+```{r}
+# packages
+
+library(plyr)
+library(caret)
+library(rattle)
+
+set.seed(12345)
+
+```
+
+Task: predict income based on education, relationship, capital.gain and
+capitol.loss
+
+```{r}
+str(proj3)
+
+# excluding occupation from model 
+proj3$occupation<- NULL
+```
+
+# Task 1: Data Prep
+
+```{r}
+# histogram of capital gain
+hist(proj3$capital.gain)
+```
+
+The extreme data values in the right tail all have the exact same value:
+99999. It is unlikely that all these individuals have the exact same
+amount of capital gains. Thus it is likely that the 99999 entry is code
+for missing.
+
+```{r}
+
+# impute data values for capital.gain
+# set to NA
+proj3$capital.gain[proj3$capital.gain == 99999] <- NA
+
+# imputation model
+imputation_model <-
+  preProcess(proj3,
+             method = c("knnImpute"))
+
+# new dataset with imputed values 
+proj3.imp  <-
+  predict(imputation_model, proj3)
+
+# view results 
+View(proj3.imp)
+
+  # find mean of capital gain, without 99999
+cgm <- mean(proj3$capital.gain, na.rm = TRUE)
+cgm
+
+
+  # find sd of capital gain, without 99999
+cgsd<- sd(proj3$capital.gain, na.rm = TRUE)
+cgsd
+
+
+#  Because it is pre-EDA de-standardize the imputed capital.gain, it is on the original scale, with no missing values, cg.imp
+cg.imp <- proj3$cg.imp<-
+  ifelse(
+    test = is.na(proj3$capital.gain) == TRUE,
+    yes = proj3.imp$capital.gain * cgsd + cgm,
+    no = proj3$capital.gain)
+summary(proj3$cg.imp)
+
+  # new sd with imputed values
+sd(proj3$cg.imp)
+
+  # new mean with imputed values
+mean(proj3$cg.imp)
+
+```
+
+| Capital Gains | Mean    | Standard Deviation |
+|---------------|---------|--------------------|
+| Original      | 592.231 | 2560.259           |
+| Imputed       | 597.567 | 2555.136           |
+
+No systematic differences were presented by adding imputed values to the
+capital.gains field in place of missing data, as the mean and standard
+deviation between the original capital.gains data and the imputed
+capital.gains differ by about 1 percent.
+
+```{r}
+
+# create flag variable: cap.miss
+# 1 =  capital.gain is missing (pre-imputation) 
+# 0  = otherwise
+cap.miss = proj3$cap.miss<- 
+  ifelse(test = is.na(proj3$capital.gain) == TRUE,
+         yes = 1,no = 0)
+
+```
+
+```{r}
+# summary of income 
+table(proj3$income)
+
+```
+
+75.912% of subjects make less than \$50,000 per year.
+
+```{r}
+# proportion table: income and education
+table1 <- table(proj3$income, proj3$education)
+table1
+
+# reclassify education into educ, with two categories only, "low" and "high"
+# "Some-college” and up as “high” and “HS-grad” down as “low”
+
+educ<- proj3$education <-
+  revalue(proj3$education,
+          c("10th" = 0, "11th" = 0, "12th"=0, "1st-4th"=0, "Preschool"=0,
+            "5th-6th"=0, "7th-8th"=0, "9th"=0, "HS-grad"=0, 
+            "Assoc-acdm"=1, "Masters"=1, "Prof-school"=1, "Some-college"=1,
+            "Assoc-voc"=1, "Bachelors"=1, "Doctorate"=1))
+
+# check results
+summary(proj3$educ)
+
+# change from numbers to categories low and high
+proj3$educ <- ifelse(proj3$educ== 0, "low", "high")
+
+# set education to NULL
+proj3$education <- NULL
+
+```
+
+```{r}
+# create prop.table of educ against income 
+
+t1 <- table(proj3$income, proj3$educ)
+t1 
+
+# table withcolumn proportions
+round(prop.table(t1, margin = 2)*100, 2)
+
+```
+
+**Contingency Table of Education and Income**
+
+|            | Capital Gains |       |
+|------------|---------------|-------|
+| **Income** | high          | low   |
+| \<= 50k    | 66.74         | 86.99 |
+| \>50k      | 33.26         | 13.01 |
+
+For subjects with a low level of education (high school graduate or
+below), 86.99% have an income of less than 50,000 dollars, with only
+13.01% earning over 50,000 dollars. Compared to subjects with higher
+levels of education (some college and above), 66.74% earn less than
+50,000 dollars and 33.26% earn more than 50,000 dollars.
+
+There are 2.56 times as many subjects making more than 50,000 dollars
+with higher levels of education than there are with lower levels of
+education. Additionally, there are 30% more subjects with incomes less
+than 50,000 dollars in the lower education group compared to the higher
+education group.
+
+```{r}
+
+# view income against relationship 
+table(proj3$income, proj3$relationship) 
+
+# reclassify “Husband” and “Wife” as “HusWife”, and the other categories as “Other”
+rel<- proj3$relationship <-
+  revalue(proj3$relationship,
+          c("Husband"=1, "Not-in-family"=0, "Other-relative"=0, 
+            "Own-child"=0, "Unmarried"=0, "Wife"=1))
+proj3$rel <- as.numeric(proj3$rel)
+
+# check results
+table(proj3$rel)
+
+# set relationship to NULL 
+proj3$relationship <- NULL
+
+
+# income against rel counts
+t2 <- table(proj3$income, proj3$rel) 
+t2
+
+# income against rel prop.table
+round(prop.table(t2, margin = 2)*100, 2)
+```
+
+**Contingency Table of Relationship and Income**
+
+|            | Relationship |         |
+|------------|--------------|---------|
+| **Income** | Other        | Married |
+| \<= 50k    | 93.38 %      | 54.86%  |
+| \>50k      | 6.62 %       | 45.14%  |
+
+Of married subjects, 54.86% make less than 50,000 dollars and 45.14%
+make more than 50,000 dollars. Only 6.62% of unmarried subjects make
+more than 50,000 dollars, with the remaining 93.8% earning below 50,000
+dollars.
+
+There are 6.81 times as many married subjects earning over 50,000
+dollars than there are unmarried subjects making over 50,000 dollars.
+Additionally, there are 1.7 times the amount of unmarried lowincome
+earners than married low-income earners.
+
+# Task 2: Partition data set
+
+```{r}
+# partition data on 50/50 split
+set.seed(12345)
+
+# set as factor
+proj3$income<-as.factor(proj3$income)
+
+inTrain <- createDataPartition(
+  y = proj3$income, p = .5,
+  list = FALSE)
+
+str(proj3$income)
+
+# assign records in inTrain to train
+proj3.tr <- proj3[ inTrain,]
+
+# assign records not in inTrain to test
+proj3.te <- proj3[-inTrain,]
+
+# confirm stratification worked
+summary(proj3.tr$income)
+summary(proj3.te$income)
+```
+
+**Income Summary**
+
+|                   |              |                      |
+|-------------------|--------------|----------------------|
+| **Capital Gains** | **Test set** | **Training** **set** |
+| \<= 50k           | 12360        | 12360                |
+| \> 50k            | 3920         | 3921                 |
+
+The dataset proj3 was partitioned so the training and test datasets
+contained 50% of the data. The training dataset, proj3.tr contains
+12,360 subjects earning less than or equal to 50k and 3,921 earning more
+than 50k. The test data set, proj3.te, contains 12,360 subjects earning
+less than or equal to 50k and 3,920 subjects earning more than 50k.
+
+```{r}
+# validate partition
+
+# append new variable part
+proj3.tr$part <-
+  rep("train", nrow(proj3.tr))
+proj3.te$part <-
+  rep("test", nrow(proj3.te))
+
+# merge data sets using rbind.
+proj3.all <- rbind(proj3.tr, proj3.te)
+```
+
+```{r}
+# validate partition for var: cg.imp
+
+# boxplot
+boxplot(proj3$cg.imp ~ as.factor(part), data = proj3.all) 
+
+# Kruskal-Wallis test
+kruskal.test(cg.imp ~ as.factor(part), 
+             data = proj3.all)
+
+```
+
+The Kruskal-Wallis rank sum test has a chi-squared test statistic of
+1.5234, df = 1, p-value = 0.2171. The p-value is greater than
+$\alpha = 0.5$ so we do not reject the null hypothesis. For variable
+cg.imp, the partition is validated.
+
+```{r}
+# validate partition for capital.loss
+
+# boxplot
+boxplot(proj3$capital.loss ~ as.factor(part), data = proj3.all) 
+    
+# Kruskal-Wallis test
+kruskal.test(proj3$capital.loss ~ as.factor(part), 
+             data = proj3.all) 
+
+```
+
+The Kruskal-Wallis rank sum test has a chi-squared test statistic of
+0.059529 with df = 1 and p-value = 0.8072. The p-value is greater than
+$\alpha = 0.5$ so we do not reject the null hypothesis. For variable
+capital.loss, the partition is validated.
+
+```{r}
+proj3.te$part<- NULL
+proj3.tr$part<- NULL
+
+```
+
+```{r}
+
+# Validate the partition for rel
+set.seed(12345)
+ 
+# rel: train data
+proj3.tr$rel<-as.factor(proj3.tr$rel)
+summary(proj3.tr$rel)
+     
+# rel: test data
+proj3.te$rel<-as.factor(proj3.te$rel)
+summary(proj3.te$rel)
+         
+
+# proportions table 
+pt<- matrix(c(7378, 7383, 8903, 8897), nrow=2)
+colnames(pt) <- c("HusWife","Other")
+rownames(pt) <- c("Training","Test")
+pt
+round(prop.table(pt, 1), 4)
+
+# chisq test
+chisq.test(pt, correct = FALSE) 
+
+```
+
+**Relationship Proportions Table**
+
+|              | HusWife | Other  |
+|--------------|---------|--------|
+| **Training** | 45.32%  | 54.68% |
+| **Test**     | 45.32%  | 54.65% |
+
+The partition is validated with respect to relationship status. There is
+only a 0.03% difference between the training set proportion of married
+subjects (45.32%) and the test set proportion of married subjects
+(45.35%). A Chi-squared test of the proportions was conducted and the
+large p-value, 0.9516, is not less than $\alpha = 0.05$ therefore we do
+not reject null hypothesis. These test results confirm that the observed
+difference in proportions of a subject's relationship status is not
+significant.
+
+```{r}
+
+# Validate the partition for educ
+
+set.seed(12345)
+# educ: train data
+proj3.tr$educ<-as.factor(proj3.tr$educ)
+summary(proj3.tr$educ)
+
+# educ: test data
+proj3.te$educ<-as.factor(proj3.te$educ)
+summary(proj3.te$educ)
+
+
+pt2<- matrix(c(8835, 8972, 7446,7308), nrow=2)
+colnames(pt2) <- c("high","low")
+rownames(pt2) <- c("Training","Test")
+pt2
+round(prop.table(pt2, 1), 4)
+
+# chisq test
+chisq.test(pt2, correct = FALSE) 
+```
+
+**Education Proportions Table**
+
+|              | high   | low    |
+|--------------|--------|--------|
+| **Training** | 54.27% | 45.73% |
+| **Test**     | 55.11% | 44.89% |
+
+The partition is validated with respect to education level. There is a
+0.84% difference between the training set of proportion of highly
+educated users (54.27%) and the test set proportion of 55.11%. A
+Chi-squared test of proportions was conducted. Since the p-value
+provided from the Chi-squared test, p = 0.1257, is not less than 0.05,
+we do not reject null hypothesis. There is insufficient evidence to
+reject the null hypothesis that the population proportions of education
+level records are equal for the training and test data sets.
+
+```{r}
+
+# save variables
+write.csv(proj3.tr, "proj3.tr")
+write.csv(proj3.te, "cproj3.te")
+
+```
+
+# Task 3: Establishing baseline model performance
+
+```{r}
+#  counts for contingency table
+summary(proj3.tr$income)
+```
+
+[**All Positive Model**]{.underline}
+
++:-----------:+:--------:+:-----------:+:-----------:+:-----------:+
+|             |          | **Predicted |             |             |
+|             |          | Category**  |             |             |
++-------------+----------+-------------+-------------+-------------+
+|             |          | **\<=50k**  | **\>50k**   | **Total**   |
++-------------+----------+-------------+-------------+-------------+
+| **Actual    | **       | TN = 0      | FP = 12360  | TAN = 12360 |
+| Category**  | \<=50k** |             |             |             |
++-------------+----------+-------------+-------------+-------------+
+|             | *        | FN = 0      | TP = 3921   | TAP = 3921  |
+|             | *\>50k** |             |             |             |
++-------------+----------+-------------+-------------+-------------+
+|             | *        | TPN = 0     | TPP = 16281 | GT = 16281  |
+|             | *Total** |             |             |             |
++-------------+----------+-------------+-------------+-------------+
+
+$Accuracy = 𝑇𝑁 + 𝑇P/𝐺𝑇= (0+3921) / 16281= 24.08%$
+
+[**All Negative Model**]{.underline}
+
++:-----------:+:-----------:+:-----------:+:-----------:+:-----------:+
+|             |             | **Predicted |             |             |
+|             |             | Category**  |             |             |
++-------------+-------------+-------------+-------------+-------------+
+|             |             | **\<=50k**  | **\>50k**   | **Total**   |
++-------------+-------------+-------------+-------------+-------------+
+| **Actual    | **\<=50k**  | TN = 12360  | FP = 0      | TAN = 12360 |
+| Category**  |             |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
+|             | **\>50k**   | FN = 3921   | TP = 0      | TAP = 3921  |
++-------------+-------------+-------------+-------------+-------------+
+|             | **Total**   | TPN = 16281 | TPP = 0     | GT = 16281  |
++-------------+-------------+-------------+-------------+-------------+
+
+$Accuracy = 𝑇𝑁 + 𝑇P/𝐺𝑇= (12360+0) / 16281= 75.91%$
+
+Since 75.91% \> 24.08%, the All Negative model is our baseline model.
+The classification model that we develop will have to beat its accuracy
+of 75.91%.
+
+# Develop CART Model
+
+```{r}
+
+# select neccessary variables and create new test/train sets for modeling
+CART_train_data <- proj3.tr[, c("income", "cg.imp", "capital.loss", "educ", "rel")]
+CART_test_data <- proj3.te[, c("income", "cg.imp", "capital.loss", "educ", "rel")]
+
+set.seed(123)
+# develop CART model using 10-fold cross-validation
+TC <- trainControl(
+  method = "CV",
+  number = 10)
+
+fit <- train(income ~ ., data = CART_train_data, 
+             method = "rpart2", 
+             trControl = TC)
+fancyRpartPlot(fit$finalModel, main = "CART Model: Predicting Income")
+
+
+```
+
+This decision tree predicts income level based on education level, net
+capital gains, and marital status using a classification and
+regression-based algorithm. In this chart, blue leaves indicate
+high-income earners (73% of records) and green leaves indicate
+low-income earners (27% of records).
+
+The first split is made for whether a subject is married, the split on
+leaf two is whether a subjects capital gains are below 7,074, and the
+split on leaf three is whether a subject has a high level of education.
+The final split on leaf 6 is whether capital gain is below 5096.
+
+```{r}
+set.seed(123)
+# check for overfitting
+fit$resample
+
+```
+
+Overfitting was checked by analyzing accuracy statistics of the k-folds
+used to partition the data through cross-validation. Fold 7 (84.02%) has
+the highest level of accuracy and Fold 1 has the lowest level of
+accuracy (80.83%). All folds are within a 3.19% difference. We judge
+that this does not reflect significant evidence of overfitting with an
+allowance of 4% variation among the ten folds.
+
+# Assessing Model Performance
+
+```{r}
+# create table of pred vs observed
+testsetpreds <- predict(fit, CART_test_data)
+
+table(CART_test_data$income, testsetpreds)
+# accuracy = (10630 + 2727)/ 16280 =  0.8204545
+
+
+```
+
+The final model achieved an accuracy of 82.05% which outperformed the
+baseline model of 75.91% accuracy by 6.13%.
+
+# Model Evaluation Metrics
+
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---+---+
+|                                                                                                                                                                                                                                      | **All-Negative Model**                                                                                                                                                                                                                                        | * | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | A | C |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | l | A |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | l | R |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | - | T |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | P | M |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | o | o |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | s | d |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | i | e |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | t | l |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | i | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | v | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | e |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | M |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | o |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | d |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | e |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | l |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * |   |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---+---+
+| **TN**                                                                                                                                                                                                                               | 0                                                                                                                                                                                                                                                             | * | 1 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 0 |
+| **FP**                                                                                                                                                                                                                               | 12,360                                                                                                                                                                                                                                                        | 1 | , |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 2 | 6 |
+| **FN**                                                                                                                                                                                                                               | **0**                                                                                                                                                                                                                                                         | , | 3 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 3 | 0 |
+| **TP**                                                                                                                                                                                                                               | **3,921**                                                                                                                                                                                                                                                     | 6 |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | 1 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | , |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 7 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 3 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | 1 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | , |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 1 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 9 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 3 | 3 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | , |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 9 | 2 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 2 | , |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 1 | 7 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 2 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | 7 |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---+---+
+| **Accuracy**                                                                                                                                                                                                                         | 0.2408                                                                                                                                                                                                                                                        | 0 | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | . | * |
+| **Error Rate**                                                                                                                                                                                                                       | 0.7592                                                                                                                                                                                                                                                        | 7 | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 5 | . |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 9 | 8 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 2 | 2 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | 4 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | . | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 2 | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 4 |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 8 | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | . |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 1 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 7 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 9 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 6 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | * |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | * |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---+---+
+| **Sensitivity**                                                                                                                                                                                                                      | **1.0**                                                                                                                                                                                                                                                       | 0 | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | . | . |
+| **Specificity**                                                                                                                                                                                                                      | 0.0                                                                                                                                                                                                                                                           | 0 | 6 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 9 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 5 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 7 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 1 |   |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | . | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | 0 | . |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 8 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               | * | 6 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 0 |
+|                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                               |   | 0 |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---+---+
+
+Metrics from CART model were then compared to the baseline
+(all-negative) model. The metrics provided for each of the three models
+are accuracy, error rate, sensitivity, and specificity. The true
+negative (TN), false positive (FP), false negative (FN) and true
+positive (TP) results are provided, representing the number of correctly
+or incorrectly identified predictions cross-classified against the
+number of true observations.
+
+Accuracy represents an overall measure of the proportion of correct
+classifications across all cells in the contingency table. The accuracy
+of the CART model (82.04%) outperformed the baseline model (75.92%) and
+increased the accuracy by 6.13%.
+
+Sensitivity measures the ability of the model to classify a record
+positively. 69.57% of the positive records were predicted positive by
+the CART model. Specificity measures the ability to classify a record
+negatively. 86.00% of the negative records were predicted negative by
+the CART model. These metrics indicate the CART model can predict 86.00%
+of low-income earners and 69.57% of high income-earners.
+
+The all-positive and all-negative models will outperform the updated
+model in regards to sensitivity and specificity every time, as they were
+constructed on the basis of either 100% sensitivity or 100% specificity.
+Sensitivity and specificity of the updated model cannot be held against
+these models and must be interpreted independently.
+
+# Decision Rules
+
+There are five possible decision rules from the CART decision tree:
+
+-   Rule #1: If a subject is married and has high education, then the
+    customer has high income with 25% support and 60% confidence.
+
+-   Rule #2: 6 If a subject is married and has low education, then the
+    customer has a low income with 19% support and 74% confidence.
+
+-   Rule #3: If a subject is married, has low education and capital gain
+    \> 5,096 then the customer has high income with 96% confidence and
+    1% support.
+
+-   Rule #4: If a subject is unmarried and has net capital gain \>
+    7,074, they are highincome earners with 1% support and 98%
+    confidence.
+
+-   Rule #5: If subject is unmarried and has net capital gain \< 7,074,
+    they are low-income earners with 54% support and 95% confidence.
+
+# Earner Profiles 
+
+[**High-income earners:**]{.underline}
+High-income earners make up 24% of all records. Overall, there are 2.56
+times more high-income earners with high education than with low
+education. CART model predicts the largest category of high-income
+earners are married and have high education, making up 25% of all
+records with a moderate level of 60% confidence.
+
+High income earners who are unmarried and have capital gain \> 7,074
+make up only 1% of the total records, but with 98% confidence, meaning
+it is extremely likely that under those circumstances, a high-income
+earner will be correctly predicted. Capital gain plays a significant
+role in this predicted outcome as only 6.62% of all unmarried subjects
+are high income earners. Alternatively, high income earners who are
+married and have capital gain \> 5,096 have 1% support and with 96%
+confidence.
+
+If a client is interested in high-income earners and has mostly married
+subjects, their focus should be on those with high education level or
+moderately high capital gain. If a client\'s subjects are unmarried,
+capital gain \> 7,074 would be the most precise way to predict
+high-income earning subjects. Overall, the CART model indicates high
+education
+level and high net capital gain are associated with a high income.
+
+[**Low-income earners:**]{.underline}
+Low-income earners make up 76% of all records. If married, CART
+classifies lowincome subjects with lower levels of education more than
+higher levels of education, with 74% of subjects under these conditions
+classified as low income, making up 19% of all records. Among all
+records, for subjects with a low level of education, about 87% are
+low-income earners. There is a strong association between low income and
+low education with respect to marriage status.
+
+Overall, there are 1.7 times the amount of unmarried low-income earners
+than married low-income earners. If unmarried, CART model predicts
+capital gain less than 7,074 to be an indicator of low income, with 95%
+confidence and 54% support. This means 95% of all unmarried subjects
+with capital gain \< 7,074 were predicted as low income, making up 54%
+of all records and the largest classification of the four decision
+rules. Overall CART model predicts low-income earners greatest with low
+education and low capital
+gain.

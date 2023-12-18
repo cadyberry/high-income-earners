@@ -2,7 +2,7 @@
 
 A classification and regression tree (CART) was used to predict income level based on education level, net capital gains and marital status using a dataset of 32,561 records. Baseline models were constructed to compare CART model metrics against. 
 
-Tasks include:
+**Tasks include:**
 - data preprocessing
 - data imputation
 - data partitioning
@@ -11,7 +11,7 @@ Tasks include:
 - extracting decision rules
 - assessing model evaluation metrics
 
-Notable conclusions from the analysis are as follows:
+**Notable conclusions:**
 
 • The CART model achieved an accuracy of 82.04% which outperformed the accuracy of the baseline model by 6.13%. 
 

@@ -1,9 +1,17 @@
 # High income earners
 
-A classification and regression tree (CART) was used to predict income level based on education level, net capital gains and marital status using a dataset of 32,561 records. Baseline models were constructed to compare CART model metrics against. Tasks in this project include:  data preprocessing, data imputation, data partitioning, establishing baseline model performance, developing a CART model, extracting decision rules and assessing model evaluation metrics. 
+A classification and regression tree (CART) was used to predict income level based on education level, net capital gains and marital status using a dataset of 32,561 records. Baseline models were constructed to compare CART model metrics against. 
 
-Notable conclusions from analysis are as follows:
+Tasks include:
+- data preprocessing
+- data imputation
+- data partitioning
+- establishing baseline model performance
+- developing a CART model
+- extracting decision rules
+- assessing model evaluation metrics
 
+Notable conclusions from the analysis are as follows:
 
 • The CART model achieved an accuracy of 82.04% which outperformed the accuracy of the baseline model by 6.13%. 
 
